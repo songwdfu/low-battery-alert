@@ -7,6 +7,8 @@ const STATUS_PATH: &str = "/sys/class/power_supply/BAT0/status";
 const DISCHARGING: &str = "Discharging";
 const LOW_PERCENTAGE: u8 = 30;
 const CRITICAL_PERCENTAGE: u8 = 15;
+const CHECK_INTVL_SEC: Duration = Duration::from_secs(300);
+const NOTIFY_INTVL_SEC: Duration = Duration::from_secs(300);
 
 fn get_battery_percentage() -> std::io::Result<u8> {
     let contents = fs::read_to_string(CAPACITY_PATH)?;
@@ -39,9 +41,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .body(&format!("Battery percentage: {}%", percentage))
                     .show()?;
             }
-            thread::sleep(Duration::from_secs(600));
+            thread::sleep(NOTIFY_INTVL_SEC);
         } else {
-            thread::sleep(Duration::from_secs(300));
+            thread::sleep(CHECK_INTVL_SEC);
         }
     }
 }
