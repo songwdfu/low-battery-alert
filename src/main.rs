@@ -24,35 +24,48 @@ fn get_battery_status() -> std::io::Result<String> {
     Ok(contents.trim().to_string())
 }
 
+/// Generate notification when needed
+/// # Arguments
+/// * `percentage` - current battery percentage
+/// * `status` - current battery status
+/// # Return
+/// io error if any, else unit
+///
+fn notify(percentage: u8, status: String) -> Result<(), Box<dyn std::error::Error>> {
+    if status == DISCHARGING {
+        if percentage < CRITICAL_PERCENTAGE {
+            Notification::new()
+                .summary("Critical Battery Percentage")
+                .body(&format!("Battery percentage: {}%", percentage))
+                .timeout(Timeout::Milliseconds(NOTIF_TIMEOUT_SEC * 1000))
+                .show()?;
+            return Ok(());
+        } else if percentage < LOW_PERCENTAGE {
+            Notification::new()
+                .summary("Low Battery Percentage")
+                .body(&format!("Battery percentage: {}%", percentage))
+                .timeout(Timeout::Milliseconds(NOTIF_TIMEOUT_SEC * 1000))
+                .show()?;
+        } else {
+            Notification::new()
+                .summary("Battery Discharging")
+                .body(&format!("Battery percentage: {}%", percentage))
+                .timeout(Timeout::Milliseconds(NOTIF_TIMEOUT_SEC * 1000))
+                .show()?;
+        }
+        thread::sleep(NOTIFY_INTVL_SEC);
+    } else {
+        thread::sleep(CHECK_INTVL_SEC);
+    }
+    Ok(())
+}
+
 /// Daemon that runs to poll the battery status and percentage, notify when needed
 fn daemon() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         let percentage = get_battery_percentage()?;
         let status = get_battery_status()?;
-        if status == DISCHARGING {
-            if percentage < CRITICAL_PERCENTAGE {
-                Notification::new()
-                    .summary("Critical Battery Percentage")
-                    .body(&format!("Battery percentage: {}%", percentage))
-                    .timeout(Timeout::Milliseconds(NOTIF_TIMEOUT_SEC * 1000))
-                    .show()?;
-            } else if percentage < LOW_PERCENTAGE {
-                Notification::new()
-                    .summary("Low Battery Percentage")
-                    .body(&format!("Battery percentage: {}%", percentage))
-                    .timeout(Timeout::Milliseconds(NOTIF_TIMEOUT_SEC * 1000))
-                    .show()?;
-            } else {
-                Notification::new()
-                    .summary("Battery Discharging")
-                    .body(&format!("Battery percentage: {}%", percentage))
-                    .timeout(Timeout::Milliseconds(NOTIF_TIMEOUT_SEC * 1000))
-                    .show()?;
-            }
-            thread::sleep(NOTIFY_INTVL_SEC);
-        } else {
-            thread::sleep(CHECK_INTVL_SEC);
-        }
+        notify(percentage, status)?;
     }
 }
 
