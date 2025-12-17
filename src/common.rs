@@ -1,5 +1,5 @@
 use notify_rust::{Notification, Timeout};
-use std::{fs, thread, time::Duration};
+use std::fs;
 
 const CAPACITY_PATH: &str = "/sys/class/power_supply/BAT0/capacity";
 const STATUS_PATH: &str = "/sys/class/power_supply/BAT0/status";
@@ -7,8 +7,6 @@ const STATUS_PATH: &str = "/sys/class/power_supply/BAT0/status";
 const DISCHARGING: &str = "Discharging";
 const LOW_PERCENTAGE: u8 = 30;
 const CRITICAL_PERCENTAGE: u8 = 15;
-const CHECK_INTVL_SEC: Duration = Duration::from_secs(300);
-const NOTIFY_INTVL_SEC: Duration = Duration::from_secs(300);
 
 const NOTIF_TIMEOUT_SEC: u32 = 15;
 
@@ -53,22 +51,14 @@ fn notify(percentage: u8, status: String) -> Result<(), Box<dyn std::error::Erro
                 .timeout(Timeout::Milliseconds(NOTIF_TIMEOUT_SEC * 1000))
                 .show()?;
         }
-        thread::sleep(NOTIFY_INTVL_SEC);
-    } else {
-        thread::sleep(CHECK_INTVL_SEC);
     }
     Ok(())
 }
 
-/// Daemon that runs to poll the battery status and percentage, notify when needed
-fn daemon() -> Result<(), Box<dyn std::error::Error>> {
-    loop {
-        let percentage = get_battery_percentage()?;
-        let status = get_battery_status()?;
-        notify(percentage, status)?;
-    }
-}
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    daemon()
+/// Poll and notify as needed
+pub fn read_bat_status() -> Result<(), Box<dyn std::error::Error>> {
+    let percentage = get_battery_percentage()?;
+    let status = get_battery_status()?;
+    notify(percentage, status)?;
+    Ok(())
 }
