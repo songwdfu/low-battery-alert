@@ -1,0 +1,64 @@
+use notify_rust::{Notification, Timeout};
+use std::fs;
+
+const CAPACITY_PATH: &str = "/sys/class/power_supply/BAT0/capacity";
+const STATUS_PATH: &str = "/sys/class/power_supply/BAT0/status";
+
+const DISCHARGING: &str = "Discharging";
+const LOW_PERCENTAGE: u8 = 30;
+const CRITICAL_PERCENTAGE: u8 = 15;
+
+const NOTIF_TIMEOUT_SEC: u32 = 15;
+
+/// Get battery percentage from the capacity file
+fn get_battery_percentage() -> std::io::Result<u8> {
+    let contents = fs::read_to_string(CAPACITY_PATH)?;
+    Ok(contents.trim().parse::<u8>().unwrap_or(100))
+}
+
+/// Get battery status from the status file
+fn get_battery_status() -> std::io::Result<String> {
+    let contents = fs::read_to_string(STATUS_PATH)?;
+    Ok(contents.trim().to_string())
+}
+
+/// Generate notification when needed
+/// # Arguments
+/// * `percentage` - current battery percentage
+/// * `status` - current battery status
+/// # Return
+/// io error if any, else unit
+///
+fn notify(percentage: u8, status: String) -> Result<(), Box<dyn std::error::Error>> {
+    if status == DISCHARGING {
+        if percentage < CRITICAL_PERCENTAGE {
+            Notification::new()
+                .summary("Critical Battery Percentage")
+                .body(&format!("Battery percentage: {}%", percentage))
+                .timeout(Timeout::Milliseconds(NOTIF_TIMEOUT_SEC * 1000))
+                .show()?;
+            return Ok(());
+        } else if percentage < LOW_PERCENTAGE {
+            Notification::new()
+                .summary("Low Battery Percentage")
+                .body(&format!("Battery percentage: {}%", percentage))
+                .timeout(Timeout::Milliseconds(NOTIF_TIMEOUT_SEC * 1000))
+                .show()?;
+        } else {
+            Notification::new()
+                .summary("Battery Discharging")
+                .body(&format!("Battery percentage: {}%", percentage))
+                .timeout(Timeout::Milliseconds(NOTIF_TIMEOUT_SEC * 1000))
+                .show()?;
+        }
+    }
+    Ok(())
+}
+
+/// Poll and notify as needed
+pub fn read_bat_status() -> Result<(), Box<dyn std::error::Error>> {
+    let percentage = get_battery_percentage()?;
+    let status = get_battery_status()?;
+    notify(percentage, status)?;
+    Ok(())
+}
